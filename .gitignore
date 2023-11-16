@@ -7,10 +7,10 @@ export.cfg
 export_presets.cfg
 
 # Python-specific ignores
+# Byte-compiled / optimized / DLL files
 **/__pycache__/
-
-# Application-specific ignores
-**/export/web/
+*.py[cod]
+*$py.class
 
 # Imported translations (automatically generated from CSV files)
 *.translation
