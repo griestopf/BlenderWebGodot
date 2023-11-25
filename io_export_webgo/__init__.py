@@ -13,15 +13,15 @@
 import bpy
 import os
 import subprocess
+import platform
+import shutil
+from urllib.request import urlretrieve
 
 # ExportHelper is a helper class, defines filename and
 # invoke() function which calls the file selector.
 from bpy_extras.io_utils import ExportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty, IntProperty
 from bpy.types import Operator, AddonPreferences
-
-the_unique_name_of_the_addon = "io_export_webgo"
-
 
 bl_info = {
     "name": "Export to Web (powered by Godot)",
@@ -34,6 +34,11 @@ bl_info = {
     "doc_url": "",
     "category": "Import-Export",
 }
+
+the_unique_name_of_the_addon   = "io_export_webgo"
+the_readable_name_of_the_addon = "Export to Web (powered by Godot)"
+
+the_unique_name_of_the_download_button = "io_export_webgo.download_godot"
 
 #######################################################################################################
 
@@ -57,9 +62,10 @@ def do_export_web(context, filepath, use_some_setting):
 
     p_addon = get_path()
     p_glb_scene = os.path.join(p_addon, "godot_viewer", "model", "model.glb")
-    p_godot_console = r"C:\Users\chris\Documents\_DEV\Godot\v4.1.3\Godot_v4.1.3-stable_win64_console.exe"
+    # p_godot_console = r"C:\Users\chris\Documents\_DEV\Godot\v4.1.3\Godot_v4.1.3-stable_win64_console.exe"
+    p_godot_console = addon_prefs.godot_path
     p_godot_project = os.path.join(p_addon, "godot_viewer", "project.godot")
-    p_web_export = os.path.join(p_addon, "godot_viewer", "export", "web", "index.html")
+    p_web_export = os.path.join(p_addon, "godot_viewer", "export", "web", "index.pck")
 
     # where are we?
     print("p_addon         ", p_addon        )
@@ -75,7 +81,7 @@ def do_export_web(context, filepath, use_some_setting):
     godot_args = [
         p_godot_console,
         p_godot_project,
-        "--export-release",
+        "--export-pack",
         "Web",
         p_web_export,
         "--headless"
@@ -92,13 +98,91 @@ def do_export_web(context, filepath, use_some_setting):
 
 #######################################################################################################
 
+def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
+
+    def draw(self, context):
+        self.layout.label(text=message)
+
+    bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
+
+#######################################################################################################
+
+class DownloadGodotOperator(bpy.types.Operator):
+    """Download the Godot game engine and store it in a local directory. This will set the 'Godot App' path setting below to the downloaded Godot version. Godot is called during Web Export to convert the Blender 3D content into a format displayable in web browsers. If you already have Godot without MONO installed on your machine you do not need to download Godot. Instead, set the 'Godot App' path to your existing Godot without MONO installation"""
+    bl_idname = the_unique_name_of_the_download_button
+    bl_label = "Download Godot"
+
+    def execute(self, context):
+        # Platform-specific info.
+        # Windows:
+        #    platform.system(): "Windows"
+        #    Download-URL:      https://github.com/godotengine/godot-builds/releases/download/4.1.3-stable/Godot_v4.1.3-stable_win64.exe.zip
+        #    Executable:        Godot_v4.1.3-stable_win64.exe   OR   Godot_v4.1.3-stable_win64_console.exe
+        # Linux:
+        #    platform.system(): "Linux"
+        #    Download-URL:      https://github.com/godotengine/godot-builds/releases/download/4.1.3-stable/Godot_v4.1.3-stable_linux.x86_64.zip
+        #    Executable:        Godot_v4.1.3-stable_linux.x86_64
+        # MacOS:
+        #    platform.system(): "Darwin"
+        #    Download-URL:      https://github.com/godotengine/godot-builds/releases/download/4.1.3-stable/Godot_v4.1.3-stable_macos.universal.zip
+        #    Executable:        Godot.app (Folder)   OR   Godot.app/Contents/MacOS/Godot (Executable)
+        godot_version = "4.1.3-stable"
+        godot_platform = "unknown"
+        godot_app = "unknown"
+        match platform.system():
+            case "Windows":
+                godot_platform = "win64.exe"
+                godot_app = "Godot_" + godot_version + "_" + godot_platform
+            case "Linux":
+                godot_platform = "linux.x86_64"
+                godot_app = "Godot_" + godot_version + "_" + godot_platform
+            case "Darwin":
+                godot_platform = "macos.universal"
+                godot_app = "Godot.app"
+        if godot_platform == "unknown":
+            header = "ERROR Downloading Godot"
+            msg = "Unknown platform '" + platform.system() +"'"
+            ShowMessageBox(msg, header, 'ERROR')
+            print(header + ": " + msg)
+            return {'CANCELLED'}
+
+        # Construct necessery paths
+        file_name = "Godot_v" + godot_version + "_" + godot_platform + ".zip"
+        download_url = "https://github.com/godotengine/godot-builds/releases/download/" + godot_version + "/" + file_name
+        p_addon = get_path()
+        p_local_dir_path = os.path.join(p_addon, "godot_app")
+        p_local_zip_path = os.path.join(p_local_dir_path, file_name)
+        p_local_app_path = os.path.join(p_local_dir_path, godot_app)
+        
+        # Check if local dir 'godot_app' exists and create if not
+        if not os.path.isdir(p_local_dir_path):
+            os.mkdir(p_local_dir_path)
+
+        # Download Godot from official GitHub 
+        print("Downloading Godot from '", download_url, "' to '", p_local_zip_path, "'")
+        urlretrieve(download_url, p_local_zip_path)
+
+        # Unzip the download
+        shutil.unpack_archive(p_local_zip_path, p_local_dir_path)
+        
+        # Delete the zip file
+        os.remove(p_local_zip_path)
+
+        # Set the path to downloaded Godot in this Add-On's preferences
+        preferences = context.preferences
+        addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
+        addon_prefs.godot_path = p_local_app_path
+
+        return {'FINISHED'}
+
+
 class ExportWebPreferences(AddonPreferences):
     # this must match the add-on name, use '__package__'
     # when defining this in a submodule of a python package.
     bl_idname = the_unique_name_of_the_addon
 
-    filepath: StringProperty(
-        name="Godot Executable",
+    godot_path: StringProperty(
+        name="Godot App",
         subtype='FILE_PATH',
     )
     number: IntProperty(
@@ -112,10 +196,21 @@ class ExportWebPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="This is a preferences view for our add-on")
-        layout.prop(self, "filepath")
-        layout.prop(self, "number")
-        layout.prop(self, "boolean")
+        layout.label(text="Download Godot v4 or higher (WIHTOUT mono)")
+        layout.label(text="from godotengine.org/download,")
+        layout.label(text="extract it to a local folder and")
+        layout.label(text="specify the file path to it below.")
+        
+        pcoll = preview_collections["main"]
+        my_icon = pcoll["my_icon"]        
+        layout.operator(the_unique_name_of_the_download_button, icon_value=my_icon.icon_id)
+        layout.prop(self, "godot_path")
+
+        #layout.prop(self, "number")
+        #layout.prop(self, "boolean")
+
+# See https://blenderartists.org/t/best-practice-for-addon-key-bindings-own-preferences-or-blenders/1416828
+# to add a button as an operator
 
 
 #######################################################################################################
@@ -164,15 +259,40 @@ class ExportWeb(Operator, ExportHelper):
 def menu_func_export(self, context):
     self.layout.operator(ExportWeb.bl_idname, text="Web Exporter")
 
+# We can store multiple preview collections here,
+# however in this example we only store "main"
+preview_collections = {}
 
 # Register and add to the "file selector" menu (required to use F3 search "Text Export Operator" for quick access).
 def register():
+    # Custom icon registration taken from https://docs.blender.org/api/4.0/bpy.utils.previews.html
+    # Note that preview collections returned by bpy.utils.previews
+    # are regular py objects - you can use them to store custom data.
+    import bpy.utils.previews
+    pcoll = bpy.utils.previews.new()
+
+    # path to the folder where the icon is
+    # the path is calculated relative to this py file inside the addon folder
+    my_icons_dir = os.path.join(os.path.dirname(__file__), "icons")
+
+    # load a preview thumbnail of a file and store in the previews collection
+    pcoll.load("my_icon", os.path.join(my_icons_dir, "godot_icon.png"), 'IMAGE')
+
+    preview_collections["main"] = pcoll
+
+    bpy.utils.register_class(DownloadGodotOperator)
     bpy.utils.register_class(ExportWeb)
     bpy.utils.register_class(ExportWebPreferences)    
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 
 def unregister():
+    # Custom icon deregistration
+    for pcoll in preview_collections.values():
+         bpy.utils.previews.remove(pcoll)
+    preview_collections.clear()
+
+    bpy.utils.unregister_class(DownloadGodotOperator)
     bpy.utils.unregister_class(ExportWeb)
     bpy.utils.unregister_class(ExportWebPreferences)    
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
