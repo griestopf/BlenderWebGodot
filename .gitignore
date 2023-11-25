@@ -1,7 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 
-godot_viewer/godot_app/
+io_export_webgo/godot_app/
 
 # Godot-specific ignores
 .import/
