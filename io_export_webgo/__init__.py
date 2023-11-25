@@ -73,6 +73,8 @@ def do_export_web(context, filepath, use_some_setting):
 # "C:\Users\chris\Documents\_DEV\BlendWebGodot\godot_viewer\model\model.glb"
 #  C:\Users\chris\Documents\_DEV\BlendWebGodot\io_export_webgo\\godot_viewer\\model\\model.glb
     print("p_godot_console ", p_godot_console)
+# C:\Users\chris\Documents\_DEV\BlenderWebGodot\io_export_webgo\godot_app\Godot_v4.1.3-stable_win64.exe
+# C:\Users\chris\Documents\_DEV\BlenderWebGodot\io_export_webgo\godot_app\Godot_4.1.3-stable_win64.exe
     print("p_godot_project ", p_godot_project)
     print("p_web_export    ", p_web_export   )
 
@@ -132,10 +134,10 @@ class DownloadGodotOperator(bpy.types.Operator):
         match platform.system():
             case "Windows":
                 godot_platform = "win64.exe"
-                godot_app = "Godot_" + godot_version + "_" + godot_platform
+                godot_app = "Godot_v" + godot_version + "_" + godot_platform
             case "Linux":
                 godot_platform = "linux.x86_64"
-                godot_app = "Godot_" + godot_version + "_" + godot_platform
+                godot_app = "Godot_v" + godot_version + "_" + godot_platform
             case "Darwin":
                 godot_platform = "macos.universal"
                 godot_app = "Godot.app"
