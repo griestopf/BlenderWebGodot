@@ -31,7 +31,7 @@ bl_info = {
     "location": "File > Export > Web",
     "description": "Exports a 3D scene that can be viewed in Web Browsers using the Godot Open-Source Game-Engine",
     "warning": "",
-    "doc_url": "",
+    "doc_url": "https://github.com/griestopf/BlenderWebGodot",
     "category": "Import-Export",
 }
 
@@ -39,6 +39,9 @@ the_unique_name_of_the_addon   = "io_export_webgo"
 the_readable_name_of_the_addon = "Export to Web (powered by Godot)"
 
 the_unique_name_of_the_download_button = "io_export_webgo.download_godot"
+the_required_godot_version = ""
+
+
 
 #######################################################################################################
 
@@ -48,40 +51,49 @@ def get_path():
     return os.path.dirname(os.path.realpath(__file__))
 
 
+def draw_godot_download_settings(parent):
+    layout = parent.layout
+    pcoll = preview_collections["main"]
+    my_icon = pcoll["my_icon"]        
+    layout.operator(the_unique_name_of_the_download_button, icon_value=my_icon.icon_id)
+    layout.prop(parent, "godot_path")
+
+def report_error(header: str, msg: str):
+    ShowMessageBox(msg, header, 'ERROR')
+    print(header + ": " + msg)
+    
 def do_export_web(context, filepath, use_some_setting):
     print("running do_export_web...")
+    if not is_godot4_present(context):
+        bpy.ops.screen.userpref_show()
+        bpy.context.preferences.active_section = 'ADDONS'
+        bpy.data.window_managers["WinMan"].addon_search = the_readable_name_of_the_addon
+        bpy.data.window_managers["WinMan"].addon_support = {'COMMUNITY'}
+        bpy.ops.preferences.addon_expand(module=the_unique_name_of_the_addon)
+        report_error("ERROR Godot not present", "Godot 4 or higher is not available. Go to Edit->Preferences->Add-Ons->'Export to Web (powered by Godot)' and Download Godot or set the path.")
+        return {'CANCELLED'}
+
     preferences = context.preferences
     addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
-
-
-   # .\Godot_v4.1.3-stable_win64_console.exe 
-   #    C:\Users\chris\Documents\_DEV\Nicetries\Godot\Bleweb\project.godot 
-   #    --export-release 
-   #       Web C:\Users\chris\Documents\_DEV\Nicetries\Godot\Bleweb\Export\Web\index.html    
-   #    --headless
+    p_godot_app = addon_prefs.godot_path
+   
 
     p_addon = get_path()
     p_glb_scene = os.path.join(p_addon, "godot_viewer", "model", "model.glb")
-    # p_godot_console = r"C:\Users\chris\Documents\_DEV\Godot\v4.1.3\Godot_v4.1.3-stable_win64_console.exe"
-    p_godot_console = addon_prefs.godot_path
     p_godot_project = os.path.join(p_addon, "godot_viewer", "project.godot")
     p_web_export = os.path.join(p_addon, "godot_viewer", "export", "web", "index.pck")
 
     # where are we?
     print("p_addon         ", p_addon        )
     print("p_glb_scene     ", p_glb_scene    )
-# "C:\Users\chris\Documents\_DEV\BlendWebGodot\godot_viewer\model\model.glb"
-#  C:\Users\chris\Documents\_DEV\BlendWebGodot\io_export_webgo\\godot_viewer\\model\\model.glb
-    print("p_godot_console ", p_godot_console)
-# C:\Users\chris\Documents\_DEV\BlenderWebGodot\io_export_webgo\godot_app\Godot_v4.1.3-stable_win64.exe
-# C:\Users\chris\Documents\_DEV\BlenderWebGodot\io_export_webgo\godot_app\Godot_4.1.3-stable_win64.exe
+    print("p_godot_console ", p_godot_app    )
     print("p_godot_project ", p_godot_project)
     print("p_web_export    ", p_web_export   )
 
     # .\Godot_v4.1.3-stable_win64_console.exe C:\Users\chris\Documents\_DEV\Nicetries\Godot\Bleweb\project.godot --export-release Web C:\Users\chris\Documents\_DEV\Nicetries\Godot\Bleweb\Export\Web\index.html --headless
     bpy.ops.export_scene.gltf(filepath=p_glb_scene)
     godot_args = [
-        p_godot_console,
+        p_godot_app,
         p_godot_project,
         "--export-pack",
         "Web",
@@ -97,6 +109,24 @@ def do_export_web(context, filepath, use_some_setting):
 
     return {'FINISHED'}
 
+def is_godot4_present(context):
+    preferences = context.preferences
+    addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
+    p_godot_app = addon_prefs.godot_path
+    if not p_godot_app:
+        return False
+    if not os.path.isfile(p_godot_app):
+        return False
+    godot_args = [
+        p_godot_app,
+        "--version"
+    ]
+    result = subprocess.run(godot_args, capture_output = True, text = True)
+    if len(result.stdout) < 2 or int(result.stdout[0]) < 4:
+        return False
+    return True
+
+
 
 #######################################################################################################
 
@@ -106,6 +136,8 @@ def ShowMessageBox(message = "", title = "Message Box", icon = 'INFO'):
         self.layout.label(text=message)
 
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
+
+
 
 #######################################################################################################
 
@@ -142,10 +174,7 @@ class DownloadGodotOperator(bpy.types.Operator):
                 godot_platform = "macos.universal"
                 godot_app = "Godot.app"
         if godot_platform == "unknown":
-            header = "ERROR Downloading Godot"
-            msg = "Unknown platform '" + platform.system() +"'"
-            ShowMessageBox(msg, header, 'ERROR')
-            print(header + ": " + msg)
+            report_error(header = "ERROR Downloading Godot", msg = "Unknown platform '" + platform.system() +"'")
             return {'CANCELLED'}
 
         # Construct necessery paths
@@ -158,17 +187,32 @@ class DownloadGodotOperator(bpy.types.Operator):
         
         # Check if local dir 'godot_app' exists and create if not
         if not os.path.isdir(p_local_dir_path):
-            os.mkdir(p_local_dir_path)
+            try:
+                os.makdirs(p_local_dir_path)
+            except:
+                report_error(header = "ERROR Downloading Godot", msg = "Cannot create directory'" + p_local_dir_path +"'")
+                return {'CANCELLED'}
 
         # Download Godot from official GitHub 
         print("Downloading Godot from '", download_url, "' to '", p_local_zip_path, "'")
-        urlretrieve(download_url, p_local_zip_path)
+        try:
+            urlretrieve(download_url, p_local_zip_path)
+        except:
+            report_error(header = "ERROR Downloading Godot", msg = "Cannot download Godot from '" + download_url +"'")
+            return {'CANCELLED'}
 
         # Unzip the download
-        shutil.unpack_archive(p_local_zip_path, p_local_dir_path)
-        
+        try:
+            shutil.unpack_archive(p_local_zip_path, p_local_dir_path)
+        except:
+            report_error(header = "ERROR Downloading Godot", msg = "Cannot unzip downloaded Godot at '" + p_local_zip_path +"'")
+            return {'CANCELLED'}
+
         # Delete the zip file
-        os.remove(p_local_zip_path)
+        try:
+            os.remove(p_local_zip_path)
+        except:
+            report_error(header = "Warning", msg = "Could not remove Godot zip file after extracting it '" + p_local_zip_path +"'")
 
         # Set the path to downloaded Godot in this Add-On's preferences
         preferences = context.preferences
@@ -198,15 +242,17 @@ class ExportWebPreferences(AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="Download Godot v4 or higher (WIHTOUT mono)")
-        layout.label(text="from godotengine.org/download,")
-        layout.label(text="extract it to a local folder and")
-        layout.label(text="specify the file path to it below.")
-        
-        pcoll = preview_collections["main"]
-        my_icon = pcoll["my_icon"]        
-        layout.operator(the_unique_name_of_the_download_button, icon_value=my_icon.icon_id)
-        layout.prop(self, "godot_path")
+        draw_godot_download_settings(self)
+
+        #layout.label(text="Download Godot v4 or higher (WIHTOUT mono)")
+        #layout.label(text="from godotengine.org/download,")
+        #layout.label(text="extract it to a local folder and")
+        #layout.label(text="specify the file path to it below.")
+     
+        # pcoll = preview_collections["main"]
+        # my_icon = pcoll["my_icon"]        
+        # layout.operator(the_unique_name_of_the_download_button, icon_value=my_icon.icon_id)
+        # layout.prop(self, "godot_path")
 
         #layout.prop(self, "number")
         #layout.prop(self, "boolean")
@@ -225,6 +271,11 @@ class ExportWeb(Operator, ExportHelper):
 
     # ExportHelper mix-in class uses this.
     filename_ext = ".html"
+
+    godot_path: StringProperty(
+        name="Godot App",
+        subtype='FILE_PATH',
+    )
 
     filter_glob: StringProperty(
         default="*.html",
@@ -252,6 +303,20 @@ class ExportWeb(Operator, ExportHelper):
 
     def execute(self, context):
         return do_export_web(context, self.filepath, self.use_setting)
+    
+    def draw(self, context):
+        layout = self.layout
+
+        if not is_godot4_present(context):
+            #layout.icon(icon='ERROR')
+            layout.label(text="Godot 4 not present", icon='ERROR')
+            return
+
+        # preferences = context.preferences
+        # addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
+        # self.godot_path = addon_prefs.godot_path
+        draw_godot_download_settings(self)
+
 
 
 #######################################################################################################
