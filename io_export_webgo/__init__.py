@@ -69,8 +69,8 @@ def do_export_web(context, filepath, use_some_setting):
         bpy.context.preferences.active_section = 'ADDONS'
         bpy.data.window_managers["WinMan"].addon_search = the_readable_name_of_the_addon
         bpy.data.window_managers["WinMan"].addon_support = {'COMMUNITY'}
-        bpy.ops.preferences.addon_expand(module=the_unique_name_of_the_addon)
-        report_error("ERROR Godot not present", "Godot 4 or higher is not available. Go to Edit->Preferences->Add-Ons->'Export to Web (powered by Godot)' and Download Godot or set the path.")
+        bpy.ops.preferences.addon_show(module=the_unique_name_of_the_addon)
+        report_error("ERROR Godot not present", "Godot 4 or higher is not available. Try 'Download Godot' or set the 'Godot App' path in Edit>Preferences>Add-Ons>'Export to Web (powered by Godot)'!")
         return {'CANCELLED'}
 
     preferences = context.preferences
@@ -229,6 +229,7 @@ class ExportWebPreferences(AddonPreferences):
 
     godot_path: StringProperty(
         name="Godot App",
+        description="Valid file path to the local Godot 4 Application/Executable. If you already downloaded Godot 4 without MONO, specify your local installation here. Ohterwise, use the 'Download Godot' button above to download an appropriate Godot version and set the path automatically",
         subtype='FILE_PATH',
     )
     number: IntProperty(
@@ -272,6 +273,8 @@ class ExportWeb(Operator, ExportHelper):
     # ExportHelper mix-in class uses this.
     filename_ext = ".html"
 
+    godot_present = False
+
     godot_path: StringProperty(
         name="Godot App",
         subtype='FILE_PATH',
@@ -304,18 +307,23 @@ class ExportWeb(Operator, ExportHelper):
     def execute(self, context):
         return do_export_web(context, self.filepath, self.use_setting)
     
+    def invoke(self, context, event):
+        self.godot_present = is_godot4_present(context)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
     def draw(self, context):
         layout = self.layout
 
-        if not is_godot4_present(context):
-            #layout.icon(icon='ERROR')
+        if not self.godot_present:
             layout.label(text="Godot 4 not present", icon='ERROR')
             return
 
         # preferences = context.preferences
         # addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
         # self.godot_path = addon_prefs.godot_path
-        draw_godot_download_settings(self)
+        layout.label(text="Godot 4 is present", icon='CHECKMARK')
 
 
 
