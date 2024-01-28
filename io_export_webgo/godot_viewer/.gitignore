@@ -1,2 +1,5 @@
 # Godot 4+ specific ignores
 .godot/
+
+# Download directory
+io_export_webgo/godot_app/

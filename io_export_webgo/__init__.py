@@ -65,6 +65,8 @@ def report_error(header: str, msg: str):
 def do_export_web(context, filepath, use_some_setting):
     print("running do_export_web...")
     if not is_godot4_present(context):
+        # Godot is not downloaded. Open the Blender Add-on preferences with this
+        # Add-On's settings expanded.
         bpy.ops.screen.userpref_show()
         bpy.context.preferences.active_section = 'ADDONS'
         bpy.data.window_managers["WinMan"].addon_search = the_readable_name_of_the_addon
@@ -110,6 +112,7 @@ def do_export_web(context, filepath, use_some_setting):
     return {'FINISHED'}
 
 def is_godot4_present(context):
+    '''Check if the godot app file exists. If so, call it with the --version parameter and check if it outputs "4" as the first digit.'''
     preferences = context.preferences
     addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
     p_godot_app = addon_prefs.godot_path
@@ -160,7 +163,7 @@ class DownloadGodotOperator(bpy.types.Operator):
         #    platform.system(): "Darwin"
         #    Download-URL:      https://github.com/godotengine/godot-builds/releases/download/4.1.3-stable/Godot_v4.1.3-stable_macos.universal.zip
         #    Executable:        Godot.app (Folder)   OR   Godot.app/Contents/MacOS/Godot (Executable)
-        godot_version = "4.1.3-stable"
+        godot_version = "4.2.1-stable"
         godot_platform = "unknown"
         godot_app = "unknown"
         match platform.system():
@@ -193,7 +196,7 @@ class DownloadGodotOperator(bpy.types.Operator):
                 report_error(header = "ERROR Downloading Godot", msg = "Cannot create directory'" + p_local_dir_path +"'")
                 return {'CANCELLED'}
 
-        # Download Godot from official GitHub 
+        # Download Godot from official GitHub repo
         print("Downloading Godot from '", download_url, "' to '", p_local_zip_path, "'")
         try:
             urlretrieve(download_url, p_local_zip_path)
