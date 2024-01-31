@@ -12,6 +12,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 import bpy
 import os
+import stat
 import subprocess
 import platform
 import shutil
@@ -75,31 +76,114 @@ def do_export_web(context, filepath, use_some_setting):
         report_error("ERROR Godot not present", "Godot 4 or higher is not available. Try 'Download Godot' or set the 'Godot App' path in Edit>Preferences>Add-Ons>'Export to Web (powered by Godot)'!")
         return {'CANCELLED'}
 
+    # assemble target path
+    p_target_dir = filepath[:filepath.rindex(".")]
+    p_target_pck = os.path.join(p_target_dir, "index.pck")
+    p_target_servepy = os.path.join(p_target_dir, "serve.py")
+    p_target_servebat = "unknown"
+    p_servebat_contents = ""
+    match platform.system():
+        case "Windows":
+            p_target_servebat = p_target_dir + ".bat"
+            # no shebang on windows
+        case "Linux":
+            p_target_servebat = p_target_dir + ".bash"
+            p_servebat_contents = "#!/bin/bash\n" # should do on most *nixes
+        case "Darwin":
+            p_target_servebat = p_target_dir + ".command"
+            p_servebat_contents = "#!/bin/bash\n" # will do on MacOS
+    if p_target_servebat == "unknown":
+        report_error(header = "ERROR Exporting to Web", msg = "Unknown platform '" + platform.system() +"'")
+        return {'CANCELLED'}
+
+    p_blender_exe = bpy.app.binary_path
+    p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
+    
+    # assemble paths relative to this addon
     preferences = context.preferences
     addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
     p_godot_app = addon_prefs.godot_path
    
-
     p_addon = get_path()
     p_glb_scene = os.path.join(p_addon, "godot_viewer", "model", "model.glb")
     p_godot_project = os.path.join(p_addon, "godot_viewer", "project.godot")
-    p_web_export = os.path.join(p_addon, "godot_viewer", "export", "web", "index.pck")
+    p_web_export_dir = os.path.join(p_addon, "godot_viewer", "export", "web")
+    p_web_export_pck = os.path.join(p_web_export_dir, "index.pck")
+    p_src_servepy = os.path.join(p_addon, "serve.py")
 
     # where are we?
-    print("p_addon         ", p_addon        )
-    print("p_glb_scene     ", p_glb_scene    )
-    print("p_godot_console ", p_godot_app    )
-    print("p_godot_project ", p_godot_project)
-    print("p_web_export    ", p_web_export   )
+    print("p_addon          ", p_addon          )
+    print("p_glb_scene      ", p_glb_scene      )
+    print("p_godot_console  ", p_godot_app      )
+    print("p_godot_project  ", p_godot_project  )
+    print("p_web_export_dir ", p_web_export_dir )
+    
+    print("p_target_dir     ", p_target_dir)
+    print("p_target_pck     ", p_target_pck)
 
-    # .\Godot_v4.1.3-stable_win64_console.exe C:\Users\chris\Documents\_DEV\Nicetries\Godot\Bleweb\project.godot --export-release Web C:\Users\chris\Documents\_DEV\Nicetries\Godot\Bleweb\Export\Web\index.html --headless
+    # Remove anything exisiting with the name
+    # e.g. a directory with the given name
+    if os.path.isdir(p_target_dir):
+        try:
+            shutil.rmtree(p_target_dir)
+        except:
+            report_error(header = "ERROR Exporting to Web", msg = "Could not remove existing directory'" + p_target_dir +"'")
+            return {'CANCELLED'}
+    # or a file with the exact name
+    if os.path.isfile(filepath):
+        try:
+            os.remove(filepath)
+        except:
+            report_error(header = "ERROR Exporting to Web", msg = "Could not remove existing file '" + filepath +"'")
+    # or the starter batch file
+    if os.path.isfile(p_target_servebat):
+        try:
+            os.remove(p_target_servebat)
+        except:
+            report_error(header = "ERROR Exporting to Web", msg = "Could not remove existing file '" + p_target_servebat +"'")
+    
+
+    # Check if local dir 'p_target_dir' exists and create if not
+    # if not os.path.isdir(p_target_dir):
+    #     try:
+    #         os.makedirs(p_target_dir)
+    #     except OSError as exc:
+    #         report_error(header = "ERROR Exporting to Web", msg = "Cannot create directory '" + p_target_dir +"'")
+    #         return {'CANCELLED'}
+
+    # Copy the original viewer's web export to the target directory
+    try:
+        shutil.copytree(p_web_export_dir, p_target_dir)
+    except:
+        report_error(header = "ERROR Exporting to Web", msg = "Cannot copy contents from '" + p_web_export_dir +"' to '" + p_target_dir +"'")
+        return {'CANCELLED'}
+
+    # Copy the serve.py script necessary to locally display the web contents
+    try:
+        shutil.copy2(p_src_servepy, p_target_dir)
+    except:
+        report_error(header = "ERROR Exporting to Web", msg = "Cannot copy '" + p_src_servepy +"' to '" + p_target_dir +"'")
+        return {'CANCELLED'}
+    
+    # Create the batch file to call serve.py and make the batch file executable
+    try:
+        f = open(p_target_servebat, "w")
+        f.write(p_servebat_contents)
+        f.close()
+        st = os.stat(p_target_servebat)
+        os.chmod(p_target_servebat, st.st_mode | stat.S_IXGRP | stat.S_IXUSR | stat.S_IXOTH)
+    except:
+        report_error(header = "ERROR Exporting to Web", msg = "Cannot create '" + p_target_servebat + "'")
+        return {'CANCELLED'}
+
+    # Export blender contents to gltf and run godot to overwrite the .pck web contents
     bpy.ops.export_scene.gltf(filepath=p_glb_scene)
     godot_args = [
         p_godot_app,
         p_godot_project,
         "--export-pack",
         "Web",
-        p_web_export,
+        p_target_pck,
         "--headless"
     ]
     print(godot_args)
@@ -191,7 +275,7 @@ class DownloadGodotOperator(bpy.types.Operator):
         # Check if local dir 'godot_app' exists and create if not
         if not os.path.isdir(p_local_dir_path):
             try:
-                os.makdirs(p_local_dir_path)
+                os.makedirs(p_local_dir_path)
             except:
                 report_error(header = "ERROR Downloading Godot", msg = "Cannot create directory'" + p_local_dir_path +"'")
                 return {'CANCELLED'}
