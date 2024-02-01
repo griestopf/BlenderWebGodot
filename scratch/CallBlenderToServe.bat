@@ -1,1 +1,1 @@
-"C:\Program Files\Blender Foundation\Blender 4.0\blender.exe" --background --python serve.py -- --root ../io_export_webgo/godot_viewer/export/web --port 55544
+"C:\Program Files\Blender Foundation\Blender 4.0\blender.exe" --background --python ../io_export_webgo/serve.py -- --root ../io_export_webgo/godot_viewer/export/web --port 55544

@@ -16,6 +16,7 @@ import stat
 import subprocess
 import platform
 import shutil
+import traceback
 from urllib.request import urlretrieve
 
 # ExportHelper is a helper class, defines filename and
@@ -40,7 +41,7 @@ the_unique_name_of_the_addon   = "io_export_webgo"
 the_readable_name_of_the_addon = "Export to Web (powered by Godot)"
 
 the_unique_name_of_the_download_button = "io_export_webgo.download_godot"
-the_required_godot_version = ""
+the_required_godot_version = "4.2.1-stable"
 
 
 
@@ -55,14 +56,28 @@ def get_path():
 def draw_godot_download_settings(parent):
     layout = parent.layout
     pcoll = preview_collections["main"]
-    my_icon = pcoll["my_icon"]        
-    layout.operator(the_unique_name_of_the_download_button, icon_value=my_icon.icon_id)
+    godot_icon = pcoll["the_godot_icon"]        
+    layout.operator(the_unique_name_of_the_download_button, icon_value=godot_icon.icon_id)
     layout.prop(parent, "godot_path")
 
 def report_error(header: str, msg: str):
     ShowMessageBox(msg, header, 'ERROR')
     print(header + ": " + msg)
     
+
+def get_batch_extension():
+    batch_extension = "unknown"
+    match platform.system():
+        case "Windows":
+            batch_extension = ".bat"
+        case "Linux":
+            batch_extension = ".bash"
+        case "Darwin":
+            batch_extension = ".command"
+    if batch_extension == "unknown":
+        report_error(header = "ERROR", msg = "Unknown platform '" + platform.system() +"'")
+    return batch_extension
+
 def do_export_web(context, filepath, use_some_setting):
     print("running do_export_web...")
     if not is_godot4_present(context):
@@ -111,57 +126,43 @@ def do_export_web(context, filepath, use_some_setting):
     p_web_export_pck = os.path.join(p_web_export_dir, "index.pck")
     p_src_servepy = os.path.join(p_addon, "serve.py")
 
-    # where are we?
-    print("p_addon          ", p_addon          )
-    print("p_glb_scene      ", p_glb_scene      )
-    print("p_godot_console  ", p_godot_app      )
-    print("p_godot_project  ", p_godot_project  )
-    print("p_web_export_dir ", p_web_export_dir )
-    
-    print("p_target_dir     ", p_target_dir)
-    print("p_target_pck     ", p_target_pck)
-
     # Remove anything exisiting with the name
     # e.g. a directory with the given name
     if os.path.isdir(p_target_dir):
         try:
             shutil.rmtree(p_target_dir)
-        except:
-            report_error(header = "ERROR Exporting to Web", msg = "Could not remove existing directory'" + p_target_dir +"'")
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "ERROR Exporting to Web", msg = "Cannot remove existing directory'" + p_target_dir +"'")
             return {'CANCELLED'}
     # or a file with the exact name
     if os.path.isfile(filepath):
         try:
             os.remove(filepath)
-        except:
-            report_error(header = "ERROR Exporting to Web", msg = "Could not remove existing file '" + filepath +"'")
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "ERROR Exporting to Web", msg = "Cannot remove existing file '" + filepath +"'")
     # or the starter batch file
     if os.path.isfile(p_target_servebat):
         try:
             os.remove(p_target_servebat)
-        except:
-            report_error(header = "ERROR Exporting to Web", msg = "Could not remove existing file '" + p_target_servebat +"'")
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "ERROR Exporting to Web", msg = "Cannot remove existing file '" + p_target_servebat +"'")
     
-
-    # Check if local dir 'p_target_dir' exists and create if not
-    # if not os.path.isdir(p_target_dir):
-    #     try:
-    #         os.makedirs(p_target_dir)
-    #     except OSError as exc:
-    #         report_error(header = "ERROR Exporting to Web", msg = "Cannot create directory '" + p_target_dir +"'")
-    #         return {'CANCELLED'}
-
     # Copy the original viewer's web export to the target directory
     try:
         shutil.copytree(p_web_export_dir, p_target_dir)
-    except:
+    except Exception:
+        traceback.print_exc()
         report_error(header = "ERROR Exporting to Web", msg = "Cannot copy contents from '" + p_web_export_dir +"' to '" + p_target_dir +"'")
         return {'CANCELLED'}
 
     # Copy the serve.py script necessary to locally display the web contents
     try:
         shutil.copy2(p_src_servepy, p_target_dir)
-    except:
+    except Exception:
+        traceback.print_exc()
         report_error(header = "ERROR Exporting to Web", msg = "Cannot copy '" + p_src_servepy +"' to '" + p_target_dir +"'")
         return {'CANCELLED'}
     
@@ -172,7 +173,8 @@ def do_export_web(context, filepath, use_some_setting):
         f.close()
         st = os.stat(p_target_servebat)
         os.chmod(p_target_servebat, st.st_mode | stat.S_IXGRP | stat.S_IXUSR | stat.S_IXOTH)
-    except:
+    except Exception:
+        traceback.print_exc()
         report_error(header = "ERROR Exporting to Web", msg = "Cannot create '" + p_target_servebat + "'")
         return {'CANCELLED'}
 
@@ -247,7 +249,7 @@ class DownloadGodotOperator(bpy.types.Operator):
         #    platform.system(): "Darwin"
         #    Download-URL:      https://github.com/godotengine/godot-builds/releases/download/4.1.3-stable/Godot_v4.1.3-stable_macos.universal.zip
         #    Executable:        Godot.app (Folder)   OR   Godot.app/Contents/MacOS/Godot (Executable)
-        godot_version = "4.2.1-stable"
+        godot_version = the_required_godot_version
         godot_platform = "unknown"
         godot_app = "unknown"
         match platform.system():
@@ -259,7 +261,7 @@ class DownloadGodotOperator(bpy.types.Operator):
                 godot_app = "Godot_v" + godot_version + "_" + godot_platform
             case "Darwin":
                 godot_platform = "macos.universal"
-                godot_app = "Godot.app"
+                godot_app = "Godot.app/Contents/MacOS/Godot"
         if godot_platform == "unknown":
             report_error(header = "ERROR Downloading Godot", msg = "Unknown platform '" + platform.system() +"'")
             return {'CANCELLED'}
@@ -276,7 +278,8 @@ class DownloadGodotOperator(bpy.types.Operator):
         if not os.path.isdir(p_local_dir_path):
             try:
                 os.makedirs(p_local_dir_path)
-            except:
+            except Exception:
+                traceback.print_exc()
                 report_error(header = "ERROR Downloading Godot", msg = "Cannot create directory'" + p_local_dir_path +"'")
                 return {'CANCELLED'}
 
@@ -284,22 +287,25 @@ class DownloadGodotOperator(bpy.types.Operator):
         print("Downloading Godot from '", download_url, "' to '", p_local_zip_path, "'")
         try:
             urlretrieve(download_url, p_local_zip_path)
-        except:
+        except Exception:
+            traceback.print_exc()
             report_error(header = "ERROR Downloading Godot", msg = "Cannot download Godot from '" + download_url +"'")
             return {'CANCELLED'}
 
         # Unzip the download
         try:
             shutil.unpack_archive(p_local_zip_path, p_local_dir_path)
-        except:
+        except Exception:
+            traceback.print_exc()
             report_error(header = "ERROR Downloading Godot", msg = "Cannot unzip downloaded Godot at '" + p_local_zip_path +"'")
             return {'CANCELLED'}
 
         # Delete the zip file
         try:
             os.remove(p_local_zip_path)
-        except:
-            report_error(header = "Warning", msg = "Could not remove Godot zip file after extracting it '" + p_local_zip_path +"'")
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "Warning", msg = "Cannot remove Godot zip file after extracting it '" + p_local_zip_path +"'")
 
         # Set the path to downloaded Godot in this Add-On's preferences
         preferences = context.preferences
@@ -338,7 +344,7 @@ class ExportWebPreferences(AddonPreferences):
         #layout.label(text="specify the file path to it below.")
      
         # pcoll = preview_collections["main"]
-        # my_icon = pcoll["my_icon"]        
+        # my_icon = pcoll["the_godot_icon"]        
         # layout.operator(the_unique_name_of_the_download_button, icon_value=my_icon.icon_id)
         # layout.prop(self, "godot_path")
 
@@ -358,7 +364,7 @@ class ExportWeb(Operator, ExportHelper):
     bl_options = {'UNDO', 'PRESET'}
 
     # ExportHelper mix-in class uses this.
-    filename_ext = ".html"
+    filename_ext = get_batch_extension() # ".html"
 
     godot_present = False
 
@@ -368,7 +374,7 @@ class ExportWeb(Operator, ExportHelper):
     )
 
     filter_glob: StringProperty(
-        default="*.html",
+        default = "*" + get_batch_extension(), # "*.html",
         options={'HIDDEN'},
         maxlen=255,  # Max internal buffer length, longer would be clamped.
     )
@@ -438,7 +444,7 @@ def register():
     my_icons_dir = os.path.join(os.path.dirname(__file__), "icons")
 
     # load a preview thumbnail of a file and store in the previews collection
-    pcoll.load("my_icon", os.path.join(my_icons_dir, "godot_icon.png"), 'IMAGE')
+    pcoll.load("the_godot_icon", os.path.join(my_icons_dir, "godot_icon.png"), 'IMAGE')
 
     preview_collections["main"] = pcoll
 
