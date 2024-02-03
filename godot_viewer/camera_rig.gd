@@ -29,5 +29,5 @@ func _process(delta):
 	rotate_y(rot_y)
 	$camera_arm.rotate_x(rot_x)
 
-	rot_y *= 0.95
-	rot_x *= 0.95
+	rot_y *= 0.965
+	rot_x *= 0.965
