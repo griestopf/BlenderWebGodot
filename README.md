@@ -11,14 +11,14 @@ The export is carried out internally by the [Godot Game Engine](https://godoteng
 
 ![](img/install_01.png)
 
-3. Open the Blender Preferences window ("Edit → Preferences" or Ctrl+,).
+3. Open the "_Blender Preferences_" window ("Edit → Preferences" or `Ctrl + ','`).
 4. Open the Add-ons Tab.
-5. Click the Install button.
+5. Click the "_Install..._" button.
 
 ![](img/install_02.png)
 
-6. Goto the location of the downloaded io_export_webgo.zip file and select it.
-7. Click the Install Add-on button.
+6. In the file selector dialog, navigate to the location of the downloaded io_export_webgo.zip file and select it.
+7. Click the "_Install Add-on_" button.
 
 ![](img/install_03.png)
 
@@ -26,9 +26,9 @@ The export is carried out internally by the [Godot Game Engine](https://godoteng
 
 9. Expand the Add-on details by clicking on the arrow button and activate the Add-on by checking the check-box.
 
-10. Download Godot by clicking the "Download Godot" button.
+10. Download Godot by clicking the "_Download Godot_" button.
 
-11. Close the Blender Preferences dialog.
+11. Close the "_Blender Preferences_" dialog.
 
 ## Exporting
 
