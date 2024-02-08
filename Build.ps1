@@ -1,3 +1,13 @@
+# Make sure we are running on Power Shell 7 or above. Otherwise Compress-Archive will use
+# backslashes in the zip file's path names rendering the blender Add-On file invalid on 
+# Linux and Mac
+if ($PSVersionTable.PSVersion.Major -lt 7)
+{
+    Write-Host "This script will produce a zip file that is useless on Linux and Mac due to a" 
+    Write-Host "slash/backslash bug that was reported to Microsoft over a decade ago."
+    Write-Host "Make sure to run this script on Powershell 7 or higher."
+}
+
 # Try to find the godot environemt variable
 $godot = [System.Environment]::GetEnvironmentVariable("Godot", "User")
 if (!$godot)

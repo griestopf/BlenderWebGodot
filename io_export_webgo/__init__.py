@@ -17,6 +17,7 @@ import subprocess
 import platform
 import shutil
 import traceback
+import random
 from urllib.request import urlretrieve
 
 # ExportHelper is a helper class, defines filename and
@@ -44,7 +45,6 @@ the_unique_name_of_the_download_button = "io_export_webgo.download_godot"
 the_required_godot_version = "4.2.1-stable"
 
 
-
 #######################################################################################################
 
 
@@ -63,7 +63,21 @@ def draw_godot_download_settings(parent):
 def report_error(header: str, msg: str):
     ShowMessageBox(msg, header, 'ERROR')
     print(header + ": " + msg)
-    
+
+# Assign different ports for hosting the web export locally to avoid interfering 
+# local servers. The range of about 570 unused ports was taken from
+# https://stackoverflow.com/questions/10476987/best-tcp-port-number-range-for-internal-applications
+free_port_range_min = 30262
+free_port_range_max = 30831
+next_assigned_port = random.randint(free_port_range_min, free_port_range_max)
+
+def get_next_free_port():
+    global next_assigned_port
+    retval = next_assigned_port
+    next_assigned_port = next_assigned_port + 1
+    if next_assigned_port > free_port_range_max:
+        next_assigned_port = free_port_range_min
+    return str(retval)
 
 def get_batch_extension():
     batch_extension = "unknown"
@@ -103,20 +117,20 @@ def do_export_web(context, filepath, use_some_setting):
             p_servepy_filename = "serve_blend.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bat"
-            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
+            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port ' + get_next_free_port()
             # no shebang on windows
         case "Linux":
             p_servepy_filename = "serve_bash.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bash"
             p_servebat_contents = "#!/bin/bash\n" # should do on most *nixes
-            p_servebat_contents += 'python3 ' + p_target_servepy + ' --root "' + p_target_dir + '" --port 55544'
+            p_servebat_contents += 'python3 ' + p_target_servepy + ' --root "' + p_target_dir + '" --port ' + get_next_free_port()
         case "Darwin":
             p_servepy_filename = "serve_blend.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".command"
             p_servebat_contents = "#!/bin/bash\n" # will do on MacOS
-            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
+            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port ' + get_next_free_port()
     if p_target_servebat == "unknown":
         report_error(header = "ERROR Exporting to Web", msg = "Unknown platform '" + platform.system() +"'")
         return {'CANCELLED'}
