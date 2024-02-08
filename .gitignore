@@ -6,7 +6,7 @@ io_export_webgo/godot_app/
 # Godot-specific ignores
 .import/
 export.cfg
-export_presets.cfg
+# export_presets.cfg
 
 # Python-specific ignores
 # Byte-compiled / optimized / DLL files

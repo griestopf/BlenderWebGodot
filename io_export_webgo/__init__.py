@@ -28,7 +28,7 @@ from bpy.types import Operator, AddonPreferences
 bl_info = {
     "name": "Export to Web (powered by Godot)",
     "author": "Christoph Müller",
-    "version": (1, 0),
+    "version": (0, 6),
     "blender": (4, 0, 0),
     "location": "File > Export > Web",
     "description": "Exports a 3D scene that can be viewed in Web Browsers using the Godot Open-Source Game-Engine",
@@ -94,25 +94,33 @@ def do_export_web(context, filepath, use_some_setting):
     # assemble target path
     p_target_dir = filepath[:filepath.rindex(".")]
     p_target_pck = os.path.join(p_target_dir, "index.pck")
-    p_target_servepy = os.path.join(p_target_dir, "serve.py")
     p_target_servebat = "unknown"
     p_servebat_contents = ""
+    p_servepy_filename = ""
     match platform.system():
         case "Windows":
+            p_servepy_filename = "serve_blend.py"
+            p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bat"
+            p_blender_exe = bpy.app.binary_path
+            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
             # no shebang on windows
         case "Linux":
+            p_servepy_filename = "serve_bash.py"
+            p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bash"
             p_servebat_contents = "#!/bin/bash\n" # should do on most *nixes
+            p_servebat_contents += 'python3 ' + p_target_servepy + ' --root "' + p_target_dir + '" --port 55544'
         case "Darwin":
+            p_servepy_filename = "serve_blend.py"
+            p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".command"
             p_servebat_contents = "#!/bin/bash\n" # will do on MacOS
+            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
     if p_target_servebat == "unknown":
         report_error(header = "ERROR Exporting to Web", msg = "Unknown platform '" + platform.system() +"'")
         return {'CANCELLED'}
 
-    p_blender_exe = bpy.app.binary_path
-    p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
     
     # assemble paths relative to this addon
     preferences = context.preferences
@@ -124,7 +132,7 @@ def do_export_web(context, filepath, use_some_setting):
     p_godot_project = os.path.join(p_addon, "godot_viewer", "project.godot")
     p_web_export_dir = os.path.join(p_addon, "godot_viewer", "export", "web")
     p_web_export_pck = os.path.join(p_web_export_dir, "index.pck")
-    p_src_servepy = os.path.join(p_addon, "serve.py")
+    p_src_servepy = os.path.join(p_addon, p_servepy_filename)
 
     # Remove anything exisiting with the name
     # e.g. a directory with the given name
@@ -298,6 +306,15 @@ class DownloadGodotOperator(bpy.types.Operator):
         except Exception:
             traceback.print_exc()
             report_error(header = "ERROR Downloading Godot", msg = "Cannot unzip downloaded Godot at '" + p_local_zip_path +"'")
+            return {'CANCELLED'}
+
+        # Make the unzipped godot app executable
+        try:
+            st = os.stat(p_local_app_path)
+            os.chmod(p_local_app_path, st.st_mode | stat.S_IXGRP | stat.S_IXUSR | stat.S_IXOTH)
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "ERROR Downloading Godot", msg = "Cannot set execution flag on downloaded Godot app  '" + p_local_app_path +"'")
             return {'CANCELLED'}
 
         # Delete the zip file
