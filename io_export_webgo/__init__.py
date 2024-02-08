@@ -92,6 +92,7 @@ def do_export_web(context, filepath, use_some_setting):
         return {'CANCELLED'}
 
     # assemble target path
+    p_blender_exe = bpy.app.binary_path
     p_target_dir = filepath[:filepath.rindex(".")]
     p_target_pck = os.path.join(p_target_dir, "index.pck")
     p_target_servebat = "unknown"
@@ -102,7 +103,6 @@ def do_export_web(context, filepath, use_some_setting):
             p_servepy_filename = "serve_blend.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bat"
-            p_blender_exe = bpy.app.binary_path
             p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port 55544'
             # no shebang on windows
         case "Linux":
@@ -121,7 +121,6 @@ def do_export_web(context, filepath, use_some_setting):
         report_error(header = "ERROR Exporting to Web", msg = "Unknown platform '" + platform.system() +"'")
         return {'CANCELLED'}
 
-    
     # assemble paths relative to this addon
     preferences = context.preferences
     addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
