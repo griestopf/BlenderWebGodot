@@ -34,7 +34,7 @@ bl_info = {
     "location": "File > Export > Web",
     "description": "Exports a 3D scene that can be viewed in Web Browsers using the Godot Open-Source Game-Engine",
     "warning": "",
-    "doc_url": "https://github.com/griestopf/BlenderWebGodot",
+    "doc_url": "https://github.com/griestopf/BlenderWebGodot?tab=readme-ov-file#blenderwebgodot",
     "category": "Import-Export",
 }
 
@@ -92,7 +92,9 @@ def get_batch_extension():
         report_error(header = "ERROR", msg = "Unknown platform '" + platform.system() +"'")
     return batch_extension
 
-def do_export_web(context, filepath, use_some_setting):
+current_server_proc : subprocess.Popen = None
+
+def do_export_web(context, filepath, open_browser):
     print("running do_export_web...")
     if not is_godot4_present(context):
         # Godot is not downloaded. Open the Blender Add-on preferences with this
@@ -105,46 +107,62 @@ def do_export_web(context, filepath, use_some_setting):
         report_error("ERROR Godot not present", "Godot 4 or higher is not available. Try 'Download Godot' or set the 'Godot App' path in Edit>Preferences>Add-Ons>'Export to Web (powered by Godot)'!")
         return {'CANCELLED'}
 
-    # assemble target path
+    # assemble target files and paths used for export and for opening the exported web application locally
     p_blender_exe = bpy.app.binary_path
     p_target_dir = filepath[:filepath.rindex(".")]
     p_target_pck = os.path.join(p_target_dir, "index.pck")
     p_target_servebat = "unknown"
     p_servebat_contents = ""
     p_servepy_filename = ""
+    running_on_windows = False
     match platform.system():
         case "Windows":
+            running_on_windows = True
             p_servepy_filename = "serve_blend.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bat"
-            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port ' + get_next_free_port()
             # no shebang on windows
+            p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port ' + get_next_free_port()
         case "Linux":
             p_servepy_filename = "serve_bash.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".bash"
             p_servebat_contents = "#!/bin/bash\n" # should do on most *nixes
             p_servebat_contents += 'python3 ' + p_target_servepy + ' --root "' + p_target_dir + '" --port ' + get_next_free_port()
-        case "Darwin":
+        case "Darwin": # (open-sourced base part of macOS)
             p_servepy_filename = "serve_blend.py"
             p_target_servepy = os.path.join(p_target_dir, p_servepy_filename)
             p_target_servebat = p_target_dir + ".command"
-            p_servebat_contents = "#!/bin/bash\n" # will do on MacOS
+            p_servebat_contents = "#!/bin/bash\n" # will do on macOS
             p_servebat_contents += '"' + p_blender_exe + '" --background --python "' + p_target_servepy + '" -- --root "' + p_target_dir + '" --port ' + get_next_free_port()
     if p_target_servebat == "unknown":
         report_error(header = "ERROR Exporting to Web", msg = "Unknown platform '" + platform.system() +"'")
         return {'CANCELLED'}
 
-    # assemble paths relative to this addon
+    # Kill any previously started web serving process. It might block the directory we want to write to.
+    global current_server_proc
+    if current_server_proc and current_server_proc.poll() == None:
+        # Kill the previous (server) process (depends on platform)
+        try:
+            if running_on_windows:
+                subprocess.call(['taskkill', '/F', '/T', '/PID', str(current_server_proc.pid)])
+            else: 
+                current_server_proc.kill()
+            current_server_proc.wait(5)
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "WARNING Exporting to Web", msg = "Could not kill previos web server process")
+
+    # retrieve path to Godot from this Add-on's preferences
     preferences = context.preferences
     addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
     p_godot_app = addon_prefs.godot_path
    
+    # assemble paths relative to this addon
     p_addon = get_path()
     p_glb_scene = os.path.join(p_addon, "godot_viewer", "model", "model.glb")
     p_godot_project = os.path.join(p_addon, "godot_viewer", "project.godot")
     p_web_export_dir = os.path.join(p_addon, "godot_viewer", "export", "web")
-    p_web_export_pck = os.path.join(p_web_export_dir, "index.pck")
     p_src_servepy = os.path.join(p_addon, p_servepy_filename)
 
     # Remove anything exisiting with the name
@@ -154,7 +172,7 @@ def do_export_web(context, filepath, use_some_setting):
             shutil.rmtree(p_target_dir)
         except Exception:
             traceback.print_exc()
-            report_error(header = "ERROR Exporting to Web", msg = "Cannot remove existing directory'" + p_target_dir +"'")
+            report_error(header = "ERROR Exporting to Web", msg = "Cannot remove existing directory '" + p_target_dir +"'. Did you manually start '" + p_target_servebat + "'? If so, close that process before exporting.")
             return {'CANCELLED'}
     # or a file with the exact name
     if os.path.isfile(filepath):
@@ -212,9 +230,18 @@ def do_export_web(context, filepath, use_some_setting):
     print(godot_args)
     subprocess.run(godot_args)
 
-    #f = open(filepath, 'w', encoding='utf-8')
-    #f.write("Hello World %s" % use_some_setting)
-    #f.close()
+    # If "Open in Browser" export option is set (default), start the generated p_target_servebat script
+    if open_browser:
+        # Open the bat/bash/command file in its own console/terminal window (depends on platform)
+        try:
+            if running_on_windows:
+                current_server_proc = subprocess.Popen(p_target_servebat, creationflags=subprocess.CREATE_NEW_CONSOLE)
+            else:
+                current_server_proc = subprocess.Popen(p_target_servebat, shell=True)
+        except Exception:
+            traceback.print_exc()
+            report_error(header = "WARNING Exporting to Web", msg = "Could not start web server/browser to display export. Try starting '" + p_target_servebat + "' manually.")
+
 
     return {'FINISHED'}
 
@@ -411,9 +438,9 @@ class ExportWeb(Operator, ExportHelper):
 
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
-    use_setting: BoolProperty(
-        name="Example Boolean",
-        description="Example Tooltip",
+    open_browser: BoolProperty(
+        name="Open export in web browser",
+        description="Open the standard web browser showing the exported result. Will also starts a local web server.",
         default=True,
     )
 
@@ -428,7 +455,7 @@ class ExportWeb(Operator, ExportHelper):
     )
 
     def execute(self, context):
-        return do_export_web(context, self.filepath, self.use_setting)
+        return do_export_web(context, self.filepath, self.open_browser)
     
     def invoke(self, context, event):
         self.godot_present = is_godot4_present(context)
@@ -447,7 +474,7 @@ class ExportWeb(Operator, ExportHelper):
         # addon_prefs = preferences.addons[the_unique_name_of_the_addon].preferences
         # self.godot_path = addon_prefs.godot_path
         layout.label(text="Godot 4 is present", icon='CHECKMARK')
-
+        layout.prop(self, "open_browser")
 
 
 #######################################################################################################
