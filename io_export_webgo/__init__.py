@@ -29,7 +29,7 @@ from bpy.types import Operator, AddonPreferences
 bl_info = {
     "name": "Export to Web (powered by Godot)",
     "author": "Christoph Müller",
-    "version": (0, 6),
+    "version": (0, 7),
     "blender": (4, 0, 0),
     "location": "File > Export > Web",
     "description": "Exports a 3D scene that can be viewed in Web Browsers using the Godot Open-Source Game-Engine",
