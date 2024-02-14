@@ -44,11 +44,11 @@ The export is carried out internally by the [Godot Game Engine](https://godoteng
 
 ![](img/runninglocally_01.png)
 
-1. If the "_Open export in web browser_" was checked on [export](#exporting), your standard web browser is automatically started showing the exported 3D contents.
+1. If the "_Open export in web browser_" option was checked on [export](#exporting), your standard web browser is automatically started showing the exported 3D contents.
 
 2. To enable the browser to load contents locally (from `localhost`), a local web server is started on a free port serving the contents of the exported directory. Depending on the platform you are running on (Windows, Linux or macOS), the web server process will be started in a console window.
 
-3. To (re-)start the local web server and the web browser manually, double-click on the generated file you chose on export (the ".bat" file (Windows), the ".command" file (macOS) or the ".bash" file (Linux)). 
+3. To (re-)start the local web server and the web browser manually (at a later time, or if the "_Open export in web browser_" option was **not** checked on [export](#exporting)), double-click on the generated file you chose on export (the ".bat" file (Windows), the ".command" file (macOS) or the ".bash" file (Linux)). 
 
 ## Publishing on the Web
 
