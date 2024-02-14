@@ -36,7 +36,7 @@ The export is carried out internally by the [Godot Game Engine](https://godoteng
 
 1. To export the current 3D-contents of your Blender file, go to File → Export → Web Exporter.
 
-2. In the file export dialog, make sure "_✓ Godot 4 is present_" is displayed on top of the right sidebar. If not, make sure, Godot was downloaded from the Add-On preferences as desribed in point 10 under [Installation](#installation). Keep the "_Open export in web browser_" option checked, if you want to inspect the generated web contents locally in your web browser directly after export. Uncheck the option, if you only want to export the file without having your web browser opened to display the file.
+2. In the file export dialog, make sure "_✓ Godot 4 is present_" is displayed on top of the right sidebar. If not, make sure Godot was downloaded from the Add-On preferences as desribed in point 10 under [Installation](#installation). Keep the "_Open export in web browser_" option checked, if you want to inspect the generated web contents locally in your web browser directly after export. Uncheck the option, if you only want to export the file without having your web browser opened to display the file.
 
 3. Choose a place to save your web export. Depending on the platform you are working on, the file export dialog will prompt you to either choose a ".bat" file (Windows), a ".command" file (macOS) or a ".bash" file (Linux). This will be the file allowing you to start the web browser locally on your machine by double-clicking it. The web-application containing your exported 3D contents will be written to a sub-folder with the same name. Hit "_Export Web_" to start the export process.
 
