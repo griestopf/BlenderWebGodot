@@ -36,11 +36,19 @@ The export is carried out internally by the [Godot Game Engine](https://godoteng
 
 1. To export the current 3D-contents of your Blender file, go to File → Export → Web Exporter.
 
-2. Choose a place to save your web export. Depending on the platform you are working on, the file export dialog will prompt you to either choose a ".bat" file (Windows), a ".command" file (macOS) or a ".bash" file (Linux). This will be the file allowing you to start the web browser locally on your machine by double-clicking it. The web-application containing your exported 3D contents will be written to a sub-folder with the same name.
+2. In the file export dialog, make sure "_✓ Godot 4 is present_" is displayed on top of the right sidebar. If not, make sure, Godot was downloaded from the Add-On preferences as desribed in point 10 under [Installation](#installation). Keep the "_Open export in web browser_" option checked, if you want to inspect the generated web contents locally in your web browser directly after export. Uncheck the option, if you only want to export the file without having your web browser opened to display the file.
+
+3. Choose a place to save your web export. Depending on the platform you are working on, the file export dialog will prompt you to either choose a ".bat" file (Windows), a ".command" file (macOS) or a ".bash" file (Linux). This will be the file allowing you to start the web browser locally on your machine by double-clicking it. The web-application containing your exported 3D contents will be written to a sub-folder with the same name. Hit "_Export Web_" to start the export process.
 
 ## Running locally
 
-1. Double-click on the generated file you chose on export.
+![](img/runninglocally_01.png)
+
+1. If the "_Open export in web browser_" was checked on [export](#exporting), your standard web browser is automatically started showing the exported 3D contents.
+
+2. To enable the browser to load contents locally (from `localhost`), a local web server is started on a free port serving the contents of the exported directory. Depending on the platform you are running on (Windows, Linux or macOS), the web server process will be started in a console window.
+
+3. To (re-)start the local web server and the web browser manually, double-click on the generated file you chose on export (the ".bat" file (Windows), the ".command" file (macOS) or the ".bash" file (Linux)). 
 
 ## Publishing on the Web
 
