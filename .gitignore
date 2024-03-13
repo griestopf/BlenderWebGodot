@@ -20,3 +20,6 @@ export.cfg
 # Mono-specific ignores
 .mono/
 data_*/
+
+# Blender backup files
+*.blend[0-9]
